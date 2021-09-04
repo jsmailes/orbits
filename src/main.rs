@@ -30,6 +30,7 @@ struct Planet {
 struct Satellite {
     color: [f32; 4],
     radius: f64,
+    dead: bool,
     x: f64,
     y: f64,
     v_x: f64,
@@ -45,7 +46,7 @@ struct Args {
     sat_radius: f64,       // Radius (in px) of each satellite
     sat_velocity: f64,     // Initial velocity (in px/s) of each satellite
     gravity_constant: f64, // 'G' constant used to update velocities
-    trail_length: usize,     // Trail length, measured in number of frames of history
+    trail_length: usize,   // Trail length, measured in number of frames of history
 }
 
 // Returns true if the point with given radius is outside the window, for given window size
@@ -104,8 +105,11 @@ impl App {
                     }
                 }
 
-                let rect = rectangle::rectangle_by_corners(satellite.x - satellite.radius, satellite.y - satellite.radius, satellite.x + satellite.radius, satellite.y + satellite.radius);
-                ellipse(satellite.color, rect, c.transform, gl);
+                // Draw satellite
+                if !satellite.dead {
+                    let rect = rectangle::rectangle_by_corners(satellite.x - satellite.radius, satellite.y - satellite.radius, satellite.x + satellite.radius, satellite.y + satellite.radius);
+                    ellipse(satellite.color, rect, c.transform, gl);
+                }
             }
         });
     }
@@ -128,6 +132,7 @@ impl App {
             let sat = Satellite {
                 color,
                 radius: self.args.sat_radius,
+                dead: false,
                 x,
                 y,
                 v_x,
@@ -156,27 +161,27 @@ impl App {
             sat.y += sat.v_y * args.dt;
 
             // Update trails
-            sat.trail.push_back((sat.x, sat.y));
-            while sat.trail.len() > self.args.trail_length {
+            if !sat.dead {
+                sat.trail.push_back((sat.x, sat.y));
+            }
+            if (sat.trail.len() > self.args.trail_length) | sat.dead {
                 sat.trail.pop_front();
             }
         }
 
         // Destroy satellites if they pass outside the screen or hit a planet
         let planets = &(self.planets);
-        self.satellites.retain(|sat| {
-            !(
-                (outside(sat.x, sat.y, sat.radius, width, height)
-                & sat.trail.iter().all(|pos| outside(pos.0, pos.1, 1.0, width, height)))
+        for sat in self.satellites.iter_mut() {
+            sat.dead = sat.dead
+                | outside(sat.x, sat.y, sat.radius, width, height)
                 | planets.iter().any(|planet| {
                     let distance_x = sat.x - planet.x;
                     let distance_y = sat.y - planet.y;
                     let distance_sq = (distance_x * distance_x) + (distance_y * distance_y);
                     distance_sq.sqrt() < sat.radius + planet.radius
-                })
-            )
-            // TODO can clean this up by adding a "dead" flag
-        });
+                });
+        }
+        self.satellites.retain(|sat| !sat.dead | (sat.trail.len() > 0));
     }
 }
 
