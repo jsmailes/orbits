@@ -54,7 +54,7 @@ fn outside(x: f64, y: f64, radius: f64, width: f64, height: f64) -> bool {
     (x + radius < 0.0)
     | (y + radius < 0.0)
     | (x - radius > width)
-    | (y + radius > height)
+    | (y - radius > height)
 }
 
 // Returns a random color
