@@ -48,6 +48,19 @@ struct Args {
     trail_length: usize,     // Trail length, measured in number of frames of history
 }
 
+// Returns true if the point with given radius is outside the window, for given window size
+fn outside(x: f64, y: f64, radius: f64, width: f64, height: f64) -> bool {
+    (x + radius < 0.0)
+    | (y + radius < 0.0)
+    | (x - radius > width)
+    | (y + radius > height)
+}
+
+// Returns a random color
+fn random_color(rng: &mut ThreadRng) -> [f32; 4] {
+    [rng.gen_range(0.0..1.0), rng.gen_range(0.0..1.0), rng.gen_range(0.0..1.0), 1.0]
+}
+
 
 pub struct App {
     gl: GlGraphics,              // OpenGL drawing backend
@@ -106,7 +119,7 @@ impl App {
         let c: f64 = self.rng.gen_range(0.0..1.0);
         if c < self.args.add_chance {
             // Add new satellite
-            let color: [f32; 4] = [self.rng.gen_range(0.0..1.0), self.rng.gen_range(0.0..1.0), self.rng.gen_range(0.0..1.0), 1.0];
+            let color: [f32; 4] = random_color(&mut self.rng);
             let x: f64 = self.rng.gen_range(0.0..width);
             let y: f64 = self.rng.gen_range(0.0..height);
             let angle: f64 = self.rng.gen_range(0.0..2.0 * std::f64::consts::PI);
@@ -150,15 +163,19 @@ impl App {
         }
 
         // Destroy satellites if they pass outside the screen or hit a planet
+        let planets = &(self.planets);
         self.satellites.retain(|sat| {
             !(
-                (sat.x + sat.radius < 0.0)
-                | (sat.x - sat.radius > width)
-                | (sat.y + sat.radius < 0.0)
-                | (sat.y - sat.radius > height)
-                // TODO check for planet collisions
-                // TODO check trails as well
+                (outside(sat.x, sat.y, sat.radius, width, height)
+                & sat.trail.iter().all(|pos| outside(pos.0, pos.1, 1.0, width, height)))
+                | planets.iter().any(|planet| {
+                    let distance_x = sat.x - planet.x;
+                    let distance_y = sat.y - planet.y;
+                    let distance_sq = (distance_x * distance_x) + (distance_y * distance_y);
+                    distance_sq.sqrt() < sat.radius + planet.radius
+                })
             )
+            // TODO can clean this up by adding a "dead" flag
         });
     }
 }
@@ -170,6 +187,8 @@ fn main() {
     let width = 800;
     let height = 800;
 
+    let mut rng = rand::thread_rng();
+
     // Create an Glutin window.
     let mut window: Window = WindowSettings::new("orbits", [width, height])
         .graphics_api(opengl)
@@ -180,17 +199,24 @@ fn main() {
     // Create planets/satellites
     let mut planets: Vec<Planet> = Vec::new();
     planets.push(Planet {
-        color: [0.0, 1.0, 1.0, 1.0],
+        color: random_color(&mut rng), //[0.0, 1.0, 1.0, 1.0],
         mass: 1000.0,
         radius: 25.0,
-        x: width as f64 / 2.0,
+        x: width as f64 / 2.0 - 200.0,
+        y: height as f64 / 2.0,
+    });
+    planets.push(Planet {
+        color: random_color(&mut rng), //[0.0, 1.0, 1.0, 1.0],
+        mass: 1000.0,
+        radius: 25.0,
+        x: width as f64 / 2.0 + 200.0,
         y: height as f64 / 2.0,
     });
 
     // Create a new game and run it.
     let mut app = App {
         gl: GlGraphics::new(opengl),
-        rng: rand::thread_rng(),
+        rng,
         fps_counter: FPSCounter::default(),
         planets: planets,
         satellites: Vec::new(),
