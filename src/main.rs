@@ -28,7 +28,6 @@ struct Planet {
 
 struct Satellite {
     color: [f32; 4],
-    mass: f64,
     radius: f64,
     x: f64,
     y: f64,
@@ -37,12 +36,13 @@ struct Satellite {
 }
 
 struct Args {
-    title: String,    // Window title
-    width: f64,       // Viewport width
-    height: f64,      // Viewport height
-    add_chance: f64,  // Chance to add a satellite each frame
-    sat_radius: f64,  // Radius (in px) of each satellite
-    sat_velocity: f64 // Initial velocity (in px/s) of each satellite
+    title: String,         // Window title
+    width: f64,            // Viewport width
+    height: f64,           // Viewport height
+    add_chance: f64,       // Chance to add a satellite each frame
+    sat_radius: f64,       // Radius (in px) of each satellite
+    sat_velocity: f64,     // Initial velocity (in px/s) of each satellite
+    gravity_constant: f64, // 'G' constant used to update velocities
 }
 
 
@@ -102,7 +102,6 @@ impl App {
             let v_y: f64 = self.args.sat_velocity * angle.sin();
             let sat = Satellite {
                 color,
-                mass: 100.0,
                 radius: self.args.sat_radius,
                 x,
                 y,
@@ -114,7 +113,17 @@ impl App {
 
 
         // Update satellite velocities
-        // TODO
+        for sat in self.satellites.iter_mut() {
+            for planet in self.planets.iter() {
+                let distance_x = sat.x - planet.x;
+                let distance_y = sat.y - planet.y;
+                let distance_sq = (distance_x * distance_x) + (distance_y * distance_y);
+                let delta_velocity = (self.args.gravity_constant * planet.mass * args.dt) / (distance_sq);
+                let angle = distance_y.atan2(distance_x);
+                sat.v_x += -1.0 * delta_velocity * angle.cos();
+                sat.v_y += -1.0 * delta_velocity * angle.sin();
+            }
+        }
 
         // Update satellite positions
         for sat in self.satellites.iter_mut() {
@@ -170,9 +179,10 @@ fn main() {
             title: "orbits".to_string(),
             width: width as f64,
             height: height as f64,
-            add_chance: 0.1,
+            add_chance: 0.01,
             sat_radius: 5.0,
-            sat_velocity: 20.0,
+            sat_velocity: 200.0,
+            gravity_constant: 4000.0,
         }
     };
 
