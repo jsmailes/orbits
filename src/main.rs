@@ -4,6 +4,8 @@ extern crate opengl_graphics;
 extern crate piston;
 extern crate fps_counter;
 
+use std::collections::VecDeque;
+
 use glutin_window::GlutinWindow as Window;
 use window::AdvancedWindow;
 use opengl_graphics::{GlGraphics, OpenGL};
@@ -13,7 +15,6 @@ use piston::window::WindowSettings;
 
 use rand::Rng;
 use rand::prelude::ThreadRng;
-use rand::distributions::{Distribution, Uniform};
 
 use fps_counter::FPSCounter;
 
@@ -33,6 +34,7 @@ struct Satellite {
     y: f64,
     v_x: f64,
     v_y: f64,
+    trail: VecDeque<(f64, f64)>,
 }
 
 struct Args {
@@ -43,6 +45,7 @@ struct Args {
     sat_radius: f64,       // Radius (in px) of each satellite
     sat_velocity: f64,     // Initial velocity (in px/s) of each satellite
     gravity_constant: f64, // 'G' constant used to update velocities
+    trail_length: usize,     // Trail length, measured in number of frames of history
 }
 
 
@@ -79,6 +82,15 @@ impl App {
 
             // Draw satellites
             for satellite in satellites_iter {
+                // Draw trail
+                if satellite.trail.len() > 1 {
+                    let mut pos_old = satellite.trail[0];
+                    for pos in satellite.trail.iter().skip(1) {
+                        line(satellite.color, 1.0, [pos.0, pos.1, pos_old.0, pos_old.1], c.transform, gl);
+                        pos_old = *pos;
+                    }
+                }
+
                 let rect = rectangle::rectangle_by_corners(satellite.x - satellite.radius, satellite.y - satellite.radius, satellite.x + satellite.radius, satellite.y + satellite.radius);
                 ellipse(satellite.color, rect, c.transform, gl);
             }
@@ -107,13 +119,15 @@ impl App {
                 y,
                 v_x,
                 v_y,
+                trail: VecDeque::new(),
             };
             self.satellites.push(sat);
         }
 
 
-        // Update satellite velocities
+        // Update satellites
         for sat in self.satellites.iter_mut() {
+            // Update velocities
             for planet in self.planets.iter() {
                 let distance_x = sat.x - planet.x;
                 let distance_y = sat.y - planet.y;
@@ -123,12 +137,16 @@ impl App {
                 sat.v_x += -1.0 * delta_velocity * angle.cos();
                 sat.v_y += -1.0 * delta_velocity * angle.sin();
             }
-        }
 
-        // Update satellite positions
-        for sat in self.satellites.iter_mut() {
+            // Update positions
             sat.x += sat.v_x * args.dt;
             sat.y += sat.v_y * args.dt;
+
+            // Update trails
+            sat.trail.push_back((sat.x, sat.y));
+            while sat.trail.len() > self.args.trail_length {
+                sat.trail.pop_front();
+            }
         }
 
         // Destroy satellites if they pass outside the screen or hit a planet
@@ -139,6 +157,7 @@ impl App {
                 | (sat.y + sat.radius < 0.0)
                 | (sat.y - sat.radius > height)
                 // TODO check for planet collisions
+                // TODO check trails as well
             )
         });
     }
@@ -183,6 +202,7 @@ fn main() {
             sat_radius: 5.0,
             sat_velocity: 200.0,
             gravity_constant: 4000.0,
+            trail_length: 100,
         }
     };
 
