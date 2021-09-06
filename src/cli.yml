@@ -1,0 +1,19 @@
+name: orbits
+version: "0.2.0"
+about: Watch small circles orbit a slightly larger circle!
+args:
+  - fullscreen:
+      short: f
+      long: fullscreen
+      help: Run in fullscreen
+      takes_value: false
+  - trail_length:
+      short: l
+      long: trail_length
+      help: Length of trails
+      takes_value: true
+  - num_planets:
+      short: n
+      long: num_planets
+      help: Number of planets
+      takes_value: true

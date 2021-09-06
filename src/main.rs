@@ -1,3 +1,7 @@
+#[macro_use]
+extern crate clap;
+use clap::App as ClapApp;
+
 extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
@@ -186,37 +190,104 @@ impl App {
 }
 
 fn main() {
+    // Parse command-line arguments
+    let yaml = load_yaml!("cli.yml");
+    let matches = ClapApp::from_yaml(yaml).get_matches();
+
+    let fullscreen: bool = match matches.occurrences_of("fullscreen") {
+        0 => false,
+        _ => true,
+    };
+
+    let trail_length: usize = match matches.value_of("trail_length") {
+        Some(s) => s.parse().expect("Trail length must be an integer"),
+        None => 100,
+    };
+
+    let num_planets: usize = match matches.value_of("num_planets") {
+        Some(s) => s.parse().expect("Num_planets must be an integer"),
+        None => 1,
+    };
+
     // Change this to OpenGL::V2_1 if not working.
     let opengl = OpenGL::V3_2;
 
-    let width = 800;
-    let height = 800;
+    let mut width = 800;
+    let mut height = 800;
+
+    if fullscreen {
+        let get_resolution: Window = WindowSettings::new("get_resolution", [1, 1])
+            .build()
+            .unwrap();
+
+        let monitors: Vec<_> = get_resolution.ctx.window().available_monitors().collect();
+        if monitors.len() == 0 {
+            panic!("Could not find any monitors")
+        }
+        let monitor = &monitors[0]; // TODO allow selecting which monitor to put on
+        let size = monitor.size();
+        width = size.width;
+        height = size.height;
+    }
 
     let mut rng = rand::thread_rng();
 
-    // Create an Glutin window.
     let mut window: Window = WindowSettings::new("orbits", [width, height])
+        .fullscreen(fullscreen)
+        .resizable(false)
         .graphics_api(opengl)
         .exit_on_esc(true)
         .build()
         .unwrap();
+    if fullscreen {
+        window = window.capture_cursor(true);
+    }
 
-    // Create planets/satellites
+    // Create planets
     let mut planets: Vec<Planet> = Vec::new();
-    planets.push(Planet {
-        color: random_color(&mut rng), //[0.0, 1.0, 1.0, 1.0],
-        mass: 1000.0,
-        radius: 25.0,
-        x: width as f64 / 2.0 - 200.0,
-        y: height as f64 / 2.0,
-    });
-    planets.push(Planet {
-        color: random_color(&mut rng), //[0.0, 1.0, 1.0, 1.0],
-        mass: 1000.0,
-        radius: 25.0,
-        x: width as f64 / 2.0 + 200.0,
-        y: height as f64 / 2.0,
-    });
+    let radius: f64 = std::cmp::min(width, height) as f64 / 4.0;
+    match num_planets {
+        0 => panic!("Num_planets must be greater than 0"),
+        1 => {
+            planets.push(Planet {
+                color: random_color(&mut rng),
+                mass: 1000.0,
+                radius: 25.0,
+                x: width as f64 / 2.0,
+                y: height as f64 / 2.0,
+            });
+        },
+        2 => {
+            planets.push(Planet {
+                color: random_color(&mut rng),
+                mass: 1000.0,
+                radius: 25.0,
+                x: width as f64 / 2.0 - radius,
+                y: height as f64 / 2.0,
+            });
+            planets.push(Planet {
+                color: random_color(&mut rng),
+                mass: 1000.0,
+                radius: 25.0,
+                x: width as f64 / 2.0 + radius,
+                y: height as f64 / 2.0,
+            });
+        },
+        n => {
+            for i in 0..n {
+                let theta = (std::f64::consts::PI * 2.0 * i as f64 / n as f64) - std::f64::consts::FRAC_PI_2;
+                let x = width as f64 / 2.0 + (theta.cos() * radius);
+                let y = width as f64 / 2.0 + (theta.sin() * radius);
+                planets.push(Planet {
+                    color: random_color(&mut rng),
+                    mass: 1000.0,
+                    radius: 25.0,
+                    x,
+                    y,
+                });
+            }
+        },
+    }
 
     // Create a new game and run it.
     let mut app = App {
@@ -233,7 +304,7 @@ fn main() {
             sat_radius: 5.0,
             sat_velocity: 200.0,
             gravity_constant: 4000.0,
-            trail_length: 100,
+            trail_length: trail_length,
         }
     };
 
