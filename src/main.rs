@@ -277,7 +277,7 @@ fn main() {
             for i in 0..n {
                 let theta = (std::f64::consts::PI * 2.0 * i as f64 / n as f64) - std::f64::consts::FRAC_PI_2;
                 let x = width as f64 / 2.0 + (theta.cos() * radius);
-                let y = width as f64 / 2.0 + (theta.sin() * radius);
+                let y = height as f64 / 2.0 + (theta.sin() * radius);
                 planets.push(Planet {
                     color: random_color(&mut rng),
                     mass: 1000.0,

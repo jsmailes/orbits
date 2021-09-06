@@ -1,5 +1,5 @@
 name: orbits
-version: "0.2.0"
+version: "0.2.1"
 about: Watch small circles orbit a slightly larger circle!
 args:
   - fullscreen:
