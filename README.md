@@ -30,4 +30,15 @@ TBD
 
 ## Usage
 
-TBD
+```
+orbits [FLAGS] [OPTIONS]
+
+FLAGS:
+    -f, --fullscreen    Run in fullscreen
+    -h, --help          Prints help information
+    -V, --version       Prints version information
+
+OPTIONS:
+    -n, --num_planets <num_planets>      Number of planets
+    -l, --trail_length <trail_length>    Length of trails
+```
