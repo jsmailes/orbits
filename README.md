@@ -6,7 +6,7 @@ Watch small circles orbit a slightly larger circle!
 
 ### Binary
 
-Binaries are available from the [releases page](https://github.com/jsmailes/data-matrix/releases).
+Binaries are available from the [releases page](https://github.com/jsmailes/orbits/releases).
 Currently only tested on Fedora, testing on other systems welcome!
 
 ### Manual
